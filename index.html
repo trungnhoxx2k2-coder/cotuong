@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cờ Tướng Online</title>
+<style>
+:root{--bg:#f6f1e7;--fg:#2b2118;--card:#fffaf0;--ac:#b3261e;--mut:#7a6a58;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1813;--fg:#efe6d6;--card:#2a231b;--ac:#e0645b;--mut:#a89885}}
+:root[data-theme="dark"]{--bg:#1d1813;--fg:#efe6d6;--card:#2a231b;--ac:#e0645b;--mut:#a89885}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
+h1{font-size:1.3rem;margin:4px 0 10px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-bottom:8px}
+input,button{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid var(--mut);background:var(--card);color:var(--fg)}
+button{cursor:pointer}button:disabled{opacity:.45;cursor:default}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+#st{font-weight:600;min-height:1.4em;text-align:center;margin:4px 0}
+#seats{font-size:.9rem;color:var(--mut);text-align:center;margin-bottom:6px}
+#board{width:100%;max-width:460px;touch-action:manipulation}
+svg{width:100%;height:auto;display:block;border-radius:10px}
+</style>
+</head>
+<body>
+<h1>♟️ Cờ Tướng Online</h1>
+<div class="bar"><input id="room" value="ban1" size="10" aria-label="Mã phòng"><button class="p" id="join">Vào phòng</button></div>
+<div id="st">Nhập mã phòng rồi bấm "Vào phòng". Bạn của bạn nhập cùng mã.</div>
+<div class="bar" id="seatbar" hidden><button id="sr">Ngồi bên Đỏ</button><button id="sb">Ngồi bên Đen</button><button id="nw">Ván mới</button></div>
+<div id="seats"></div>
+<div id="board"></div>
+<script>
+const INIT=["rheakaehr",".........",".c.....c.","p.p.p.p.p",".........",".........","P.P.P.P.P",".C.....C.",".........","RHEAKAEHR"].join("");
+const G={R:"車",H:"馬",E:"相",A:"仕",K:"帥",C:"炮",P:"兵",r:"車",h:"馬",e:"象",a:"士",k:"將",c:"砲",p:"卒"};
+const isR=p=>p!=="."&&p===p.toUpperCase();
+const inb=(r,c)=>r>=0&&r<=9&&c>=0&&c<=8;
+const O=[[1,0],[-1,0],[0,1],[0,-1]],D=[[1,1],[1,-1],[-1,1],[-1,-1]];
+function pm(b,i){const p=b[i],t=p.toLowerCase(),red=isR(p),r=i/9|0,c=i%9,out=[];
+ const add=(R,C)=>{if(!inb(R,C))return false;const q=b[R*9+C];if(q==="."||isR(q)!==red)out.push(R*9+C);return q==="."};
+ const pal=(R,C)=>C>=3&&C<=5&&(red?R>=7:R<=2)&&inb(R,C);
+ if(t==="k")O.forEach(([a,d])=>{if(pal(r+a,c+d))add(r+a,c+d)});
+ if(t==="a")D.forEach(([a,d])=>{if(pal(r+a,c+d))add(r+a,c+d)});
+ if(t==="e")D.forEach(([a,d])=>{const R=r+2*a,C=c+2*d;if(inb(R,C)&&(red?R>=5:R<=4)&&b[(r+a)*9+c+d]===".")add(R,C)});
+ if(t==="h")[[-2,-1],[-2,1],[2,-1],[2,1],[-1,-2],[1,-2],[-1,2],[1,2]].forEach(([a,d])=>{const L=Math.abs(a)===2?(r+a/2)*9+c:r*9+c+d/2;if(b[L]===".")add(r+a,c+d)});
+ if(t==="r")O.forEach(([a,d])=>{let R=r+a,C=c+d;while(add(R,C)){R+=a;C+=d}});
+ if(t==="c")O.forEach(([a,d])=>{let R=r+a,C=c+d;while(inb(R,C)&&b[R*9+C]==="."){out.push(R*9+C);R+=a;C+=d}
+  R+=a;C+=d;while(inb(R,C)&&b[R*9+C]==="."){R+=a;C+=d}if(inb(R,C)&&isR(b[R*9+C])!==red)out.push(R*9+C)});
+ if(t==="p"){const f=red?-1:1;add(r+f,c);if(red?r<=4:r>=5){add(r,c-1);add(r,c+1)}}
+ return out}
+function facing(b){const a=b.indexOf("K"),k=b.indexOf("k");if(a<0||k<0||a%9!==k%9)return false;for(let i=k+9;i<a;i+=9)if(b[i]!==".")return false;return true}
+function attacked(b,s){const ki=b.indexOf(s==="r"?"K":"k");if(ki<0)return false;for(let i=0;i<90;i++){const p=b[i];if(p!=="."&&(isR(p)?"r":"b")!==s&&pm(b,i).includes(ki))return true}return false}
+function legal(b,i){const s=isR(b[i])?"r":"b";return pm(b,i).filter(j=>{const n=b.slice();n[j]=n[i];n[i]=".";return !attacked(n,s)&&!facing(n)})}
+function hasMove(b,s){for(let i=0;i<90;i++)if(b[i]!=="."&&(isR(b[i])?"r":"b")===s&&legal(b,i).length)return true;return false}
+
+let db,uid,ref,unsub,S=null,sel=null,room="ban1";
+const $=s=>document.querySelector(s);
+const role=()=>S&&(S.red===uid?"r":S.black===uid?"b":null);
+const fresh=()=>({b:INIT,turn:"r",last:[-1,-1],win:"",n:0});
+
+async function init(){
+ try{const u=await claude.use("user");uid=await u.id();db=await claude.use("db")}catch(e){}
+ if(!db){$("#st").textContent="Cần đăng nhập claude.ai để chơi online.";return}
+ $("#join").onclick=join;
+ $("#sr").onclick=()=>sit("red");$("#sb").onclick=()=>sit("black");
+ $("#nw").onclick=()=>ref.update({...fresh()}).catch(()=>{});
+ if(location.hash.length>1){$("#room").value=decodeURIComponent(location.hash.slice(1));join()}
+}
+function join(){
+ room=($("#room").value.trim()||"ban1").replace(/[^\w-]/g,"");
+ try{history.replaceState(null,"","#"+room)}catch(e){}
+ if(unsub)unsub();
+ ref=db.doc("games/"+room);sel=null;
+ unsub=ref.onSnapshot(async s=>{
+  if(!s.exists){await ref.set({...fresh(),red:"",black:""}).catch(()=>{});return}
+  S=s.data();$("#seatbar").hidden=false;sel=null;render()},
+  e=>{$("#st").textContent="Lỗi kết nối: "+(e.message||e.code)});
+}
+function sit(c){if(S[c]&&S[c]!==uid)return;const o=c==="red"?"black":"red";const u={[c]:uid};if(S[o]===uid)u[o]="";ref.update(u).catch(()=>{})}
+
+function click(i){
+ if(!S||S.win)return;const b=[...S.b],me=role();
+ if(me!==S.turn)return;
+ if(sel!==null&&legal(b,sel).includes(i)){
+  b[i]=b[sel];b[sel]=".";const nt=me==="r"?"b":"r";
+  ref.update({b:b.join(""),turn:nt,last:[sel,i],n:(S.n||0)+1,win:hasMove(b,nt)?"":me}).catch(()=>{});sel=null;return}
+ if(b[i]!=="."&&(isR(b[i])?"r":"b")===me)sel=i;else sel=null;
+ render();
+}
+function render(){
+ const b=[...S.b],me=role(),flip=me==="b",P=i=>{let r=i/9|0,c=i%9;if(flip){r=9-r;c=8-c}return[30+c*50,30+r*50]};
+ const tg=sel!==null?legal(b,sel):[];
+ let h='<svg viewBox="0 0 460 510"><rect width="460" height="510" fill="#e8c98a"/><g stroke="#5a3b1c" stroke-width="1.5" fill="none">';
+ for(let r=0;r<10;r++)h+=`<path d="M30 ${30+r*50}H430"/>`;
+ h+='<path d="M30 30V480M430 30V480"/>';
+ for(let c=1;c<8;c++)h+=`<path d="M${30+c*50} 30V230M${30+c*50} 280V480"/>`;
+ h+='<path d="M180 30L280 130M280 30L180 130M180 380L280 480M280 380L180 480"/></g>';
+ h+='<text x="130" y="262" font-size="22" fill="#5a3b1c" text-anchor="middle">楚 河</text><text x="330" y="262" font-size="22" fill="#5a3b1c" text-anchor="middle">漢 界</text>';
+ S.last.forEach(i=>{if(i>=0){const[x,y]=P(i);h+=`<rect x="${x-24}" y="${y-24}" width="48" height="48" fill="none" stroke="#2e7d32" stroke-width="3" rx="6"/>`}});
+ for(let i=0;i<90;i++){const p=b[i];if(p===".")continue;const[x,y]=P(i),col=isR(p)?"#b3261e":"#222";
+  h+=`<g data-i="${i}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="21" fill="#fbf1d8" stroke="${i===sel?"#1565c0":col}" stroke-width="${i===sel?5:2.5}"/><text x="${x}" y="${y+8}" font-size="24" font-weight="700" fill="${col}" text-anchor="middle" style="pointer-events:none">${G[p]}</text></g>`}
+ tg.forEach(i=>{const[x,y]=P(i);h+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="${b[i]==="."?9:24}" fill="${b[i]==="."?"#1565c0":"none"}" stroke="#1565c0" stroke-width="3" opacity=".7" style="cursor:pointer"/>`});
+ h+="</svg>";
+ const el=$("#board");el.innerHTML=h;
+ el.querySelectorAll("[data-i]").forEach(n=>n.onclick=()=>click(+n.dataset.i));
+ const nm={r:"Đỏ",b:"Đen"};let t;
+ if(S.win)t=`🏆 ${nm[S.win]} thắng!`;
+ else{t=`Lượt ${nm[S.turn]}`;if(attacked(b,S.turn))t+=" — Chiếu tướng!";
+  t+=!me?" (bạn đang xem)":me===S.turn?" — đến lượt bạn":" — chờ đối thủ"}
+ $("#st").textContent=t;
+ const w=c=>S[c]?(S[c]===uid?"bạn":"đã có người"):"trống";
+ $("#seats").textContent=`Đỏ: ${w("red")} · Đen: ${w("black")} · Phòng: ${room}`;
+ $("#sr").disabled=!!S.red&&S.red!==uid;$("#sb").disabled=!!S.black&&S.black!==uid;
+}
+init();
+</script>
+</body>
+</html>
